@@ -246,10 +246,15 @@ Study Material:
         )
         raw = res.choices[0].message.content
         raw = re.sub(r"```json|```", "", raw).strip()
+        # Remove invalid control characters
+        raw = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', raw)
         match = re.search(r"\[.*\]", raw, re.DOTALL)
         if not match:
             return []
-        data = json.loads(match.group(0))
+        raw_json = match.group(0)
+        # Clean the matched JSON too
+        raw_json = raw_json.replace('\n', ' ').replace('\r', ' ')
+        data = json.loads(raw_json)
         return [{"question": c["question"], "answer": c["answer"],
                  "status": "new", "attempts": 0, "correct": 0} for c in data]
     except Exception as e:
