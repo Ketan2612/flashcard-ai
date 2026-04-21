@@ -229,34 +229,43 @@ def extract_pdf_text(file):
     return text[:5000]
 
 def generate_flashcards(text):
-    prompt = f"""
-You are an expert teacher. Generate exactly 15 flashcards from the study material below.
-Return ONLY a valid JSON array — no explanation, no markdown, no extra text.
+    prompt = f"""Create 15 flashcards from the text below.
+Output must be a JSON array only. No explanation. No markdown. No extra text.
+Each item must have exactly two keys: "question" and "answer".
+Example output:
+[{{"question": "What is X?", "answer": "X is Y."}}]
 
-Format:
-[{{"question": "...", "answer": "..."}}, ...]
-
-Study Material:
+Text:
 {text}
 """
     try:
         res = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
-            messages=[{"role": "user", "content": prompt}]
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are a flashcard generator. You only output valid JSON arrays. Never include markdown, code blocks, or explanations."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3
         )
-        raw = res.choices[0].message.content
+        raw = res.choices[0].message.content.strip()
+
+        # Aggressive cleaning
         raw = re.sub(r"```json|```", "", raw).strip()
-        # Remove invalid control characters
         raw = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', raw)
+
+        # Extract JSON array
         match = re.search(r"\[.*\]", raw, re.DOTALL)
         if not match:
+            st.error("Could not find JSON in response")
             return []
+
         raw_json = match.group(0)
-        # Clean the matched JSON too
-        raw_json = raw_json.replace('\n', ' ').replace('\r', ' ')
+
+        # Parse
         data = json.loads(raw_json)
         return [{"question": c["question"], "answer": c["answer"],
                  "status": "new", "attempts": 0, "correct": 0} for c in data]
+
     except Exception as e:
         st.error(f"API Error: {str(e)}")
         return []
