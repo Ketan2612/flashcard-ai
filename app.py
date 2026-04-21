@@ -252,7 +252,8 @@ Study Material:
         data = json.loads(match.group(0))
         return [{"question": c["question"], "answer": c["answer"],
                  "status": "new", "attempts": 0, "correct": 0} for c in data]
-    except:
+    except Exception as e:
+        st.error(f"API Error: {str(e)}")
         return []
 
 def get_smart_queue(cards):
